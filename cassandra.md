@@ -169,7 +169,7 @@
   - **Murmur3Partitioner (default)** : uniformly distributes data across the cluster based
 on MurmurHash hash values.
   - **RandomPartitioner**: uniformly distributes data across the cluster based on MD5 hash values.
-  - **ByteOrderedPartitioner**: keeps an ordered distribution of data lexically by key bytes 
+  - **ByteOrderedPartitioner**: keeps an ordered distribution of data lexically by key bytes
 
 
 ### Vnodes
@@ -422,6 +422,38 @@ on MurmurHash hash values.
 * The advantage of Merkle tree is, it causes much less network traffic for transmission
 
 ## Developer Notes
+
+- Quorum calculation
+
+  ```
+  quorum = (sum_of_replication_factors / 2) + 1
+
+  where sum_of_replication_factors = datacenter1_RF + datacenter2_RF + . . . + datacentern_RF
+  ```
+
+  - Examples
+    -  Using a replication factor of 3, a quorum is 2 nodes. The cluster can tolerate 1 replica down.
+    - In a two datacenter cluster where each datacenter has a replication factor of 3, a quorum is 4 nodes. The cluster can tolerate 2 replica nodes down.
+    - In a five datacenter cluster where two datacenters have a replication factor of 3 and three datacenters have a replication factor of 2, a quorum is 7 nodes.
+
+-  Consistency calculation
+  - Strong consistency can be guaranteed when the following condition is true:
+      ```
+      => R + W > N
+      where
+      • R is the consistency level of read operations
+      • W is the consistency level of write operations
+      • N is the number of replicas
+      ```
+    - Examples
+      - If the replication factor is 3, then the consistency level of the reads and writes combined must be at least 4
+      - Read operations using 2 out of 3 replicas to verify the value, and write operations using 2 out of 3 replicas to verify the value will result in strong consistency
+      - If fast write operations are required, but strong consistency is still desired, the write consistency level is lowered to 1, but now read operations have to verify a matched value on all 3 replicas. Writes will be fast, but reads will be slower.
+  - Eventual Consistency
+    ```
+    => R + W <= N
+    ```
+
 
 * Keyspace level configurations
   * Replication Factor
