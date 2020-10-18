@@ -439,6 +439,7 @@ on MurmurHash hash values.
 -  Consistency calculation
 
   - Strong consistency can be guaranteed when the following condition is true:
+
       ```
       => R + W > N
       where
@@ -450,6 +451,7 @@ on MurmurHash hash values.
       - If the replication factor is 3, then the consistency level of the reads and writes combined must be at least 4
       - Read operations using 2 out of 3 replicas to verify the value, and write operations using 2 out of 3 replicas to verify the value will result in strong consistency
       - If fast write operations are required, but strong consistency is still desired, the write consistency level is lowered to 1, but now read operations have to verify a matched value on all 3 replicas. Writes will be fast, but reads will be slower.
+
   - Eventual Consistency
     ```
     => R + W <= N
