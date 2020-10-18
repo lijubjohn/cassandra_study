@@ -437,6 +437,7 @@ on MurmurHash hash values.
     - In a five datacenter cluster where two datacenters have a replication factor of 3 and three datacenters have a replication factor of 2, a quorum is 7 nodes.
 
 -  Consistency calculation
+
   - Strong consistency can be guaranteed when the following condition is true:
       ```
       => R + W > N
