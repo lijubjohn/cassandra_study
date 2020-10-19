@@ -358,6 +358,20 @@ on MurmurHash hash values.
   * Once data has been obtained from all of the SSTables, Cassandra merges the SSTable data and memtable data by selecting the value with the latest timestamp for each requested column. Any tombstones are ignored
   * Finally the merged data can be added to the row cache (if enabled) and returned to the client or coordinator node
 
+
+### How are read requests accomplished?
+
+- There are three types of read requests that a coordinator can send to a replica:
+  - A direct read request
+  - A digest request
+  - A background read repair request
+- In a direct read request, the coordinator node contacts one replica node. Then the coordinator sends a digest request to a number of replicas determined by the consistency level specified by the client. The digest request checks the data in the replica node to make sure it is up to date. Then the coordinator sends a digest request to all remaining replicas. If any replica nodes have out of date data, a background read repair request is sent. Read repair requests ensure that the requested row is made consistent on all replicas involved in a read query.
+- For a digest request the coordinator first contacts the replicas specified by the consistency level. The coordinator sends these requests to the replicas that currently respond the fastest. The contacted nodes respond with a digest of the requested data; if multiple nodes are contacted, the rows from each replica are compared in memory for consistency. If they are not consistent, the replica having the most recent data (based on the timestamp) is used by the coordinator to forward the result back to the client. To ensure that all replicas have the most recent version of the data, read repair is carried out to update out-of-date replicas.
+
+- In read repair, Cassandra sends a digest request to each replica not directly involved in the read. Cassandra compares all replicas and writes the most recent version to any replica node that does not have it. If the query's consistency level is above ONE, Cassandra performs this process on all replica nodes in the **foreground before the data is returned to the client**.
+
+- Example to brainstorm  -> Consistency level ( All read + One write) => strongly consistent
+
 ### Write Path
 
 * The client connects to any node which becomes the coordinator node for the write operation
@@ -456,7 +470,9 @@ on MurmurHash hash values.
     ```
     => R + W <= N
     ```
-
+- Read consistency
+  - Read repair improves consistency in a Cassandra cluster with every read request.
+  -
 
 * Keyspace level configurations
   * Replication Factor
