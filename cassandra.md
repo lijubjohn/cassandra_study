@@ -470,9 +470,6 @@ on MurmurHash hash values.
     ```
     => R + W <= N
     ```
-- Read consistency
-  - Read repair improves consistency in a Cassandra cluster with every read request.
-  -
 
 * Keyspace level configurations
   * Replication Factor
