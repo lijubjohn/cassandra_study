@@ -74,7 +74,14 @@ CREATE TABLE cycling.route (race_id int, race_name text, point_id
 CREATE TABLE cyclist_name ( id uuid primary key, lastname text, firstname text);
 
 
-DROP TABLE  cyclist_name;
+CREATE TABLE cycling.cyclist_category (
+category text,
+points int,
+id UUID,
+lastname text,
+PRIMARY KEY (category, points)
+) WITH CLUSTERING ORDER BY (points DESC);
+
 
 
 
@@ -129,5 +136,49 @@ cqlsh:cycling> select * from cyclist_name where firstname = 'fa' and lastname='l
 InvalidRequest: Error from server: code=2200 [Invalid query] message="PRIMARY KEY column "rank" cannot be restricted as preceding column "gender" is not restricted"
 
 
+```
+
+
+- Counter Column
+  -  Table containing counter column can have :
+      - The primary key (can be one or more columns)
+      - The counter column
+      - Column(s) that serves as the primary key or partition key cannot be counter column
+  - A counter column cannot be indexed or deleted
+  - Column(s) that serves as the primary key or partition key cannot be counter column
+  - Cassandra rejects USING TIMESTAMP or USING TTL when updating a counter column.
+  - INSERT statements are not allowed on counter tables
+  - To increase or decrease the value of the counter, use the UPDATE command
+
+
+```
+CREATE TABLE popular_count (
+  id UUID PRIMARY KEY,
+  popularity counter
+  );
+
+insert into popular_count (id,popularity) values (now(),10);
+
+cqlsh:cycling> insert into popular_count (id,popularity) values (now(),10);
+InvalidRequest: Error from server: code=2200 [Invalid query] message="INSERT statements are not allowed on counter tables, use UPDATE instead"
+
+---
+cqlsh:cycling> select * from popular_count;
+
+ id | popularity
+----+------------
+
+(0 rows)
+
+cqlsh:cycling> UPDATE popular_count
+           ...  SET popularity = popularity + 10
+           ...  WHERE id = 6ab09bec-e68e-48d9-a5f8-97e6fb4c9b47;
+cqlsh:cycling> select * from popular_count;
+
+ id                                   | popularity
+--------------------------------------+------------
+ 6ab09bec-e68e-48d9-a5f8-97e6fb4c9b47 |         10
+
+(1 rows)
 
 ```
