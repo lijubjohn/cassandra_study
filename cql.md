@@ -311,7 +311,36 @@ CREATE TABLE nation_rank (nation text PRIMARY KEY , info tuple<int,text,int>);
 
 - UDF
 
+```
+CREATE [OR REPLACE] FUNCTION [IF NOT EXISTS]
+[keyspace_name.]function_name (
+    var_name var_type [,...] )
+[CALLED | RETURNS NULL] ON NULL INPUT
+RETURNS cql_data_type
+LANGUAGE language_name AS
+'code_block';
+
+- example -
+Overwrite or create the fLog function that computes the logarithm of an input value. CALLED ON NULL INPUT ensures that the function will always be executed.
+
+CREATE OR REPLACE FUNCTION cycling.fLog (input double)
+CALLED ON NULL INPUT
+RETURNS double LANGUAGE java AS
+'return Double.valueOf(Math.log(input.doubleValue()));';
+```
+
 - UDA
+
+https://docs.datastax.com/en/cql-oss/3.3/cql/cql_reference/cqlCreateAggregate.html
+```
+CREATE [OR REPLACE] AGGREGATE [IF NOT EXISTS]
+keyspace_name.aggregate_name ( cql_type )
+SFUNC udf_name
+STYPE cql_type
+FINALFUNC udf_name
+INITCOND [value]
+
+```
 
 
 - Static column
@@ -320,6 +349,7 @@ CREATE TABLE nation_rank (nation text PRIMARY KEY , info tuple<int,text,int>);
   - A table that does not define any clustering columns cannot have a static column. The table having no clustering columns has a one-row partition in which every column is inherently static
   - A table defined with the COMPACT STORAGE directive cannot have a static column.
   - A column designated to be the partition key cannot be static.
+  - You can batch conditional updates to a static column.
 
 
 - Secondary index
@@ -332,19 +362,32 @@ CREATE TABLE nation_rank (nation text PRIMARY KEY , info tuple<int,text,int>);
 
 
 - Select from local
+
 ```
 SELECT toTimestamp(now()) FROM system.local;
 SELECT now() FROM system.local;
 
 ```
 
+
 - BATCH
+
+```
+BEGIN [ ( UNLOGGED | COUNTER ) ] BATCH
+  [ USING TIMESTAMP [ epoch_microseconds ] ]
+  dml_statement [ USING TIMESTAMP [ epoch_microseconds ] ] ;
+  [ dml_statement [ USING TIMESTAMP [ epoch_microseconds ] ] [ ; ... ] ]
+  APPLY BATCH ;
+
+```
+
 ```
 cqlsh> BEGIN BATCH
   INSERT INTO cycling.cyclist_expenses (cyclist_name, balance) VALUES ('Vera ADRIAN', 0) IF NOT EXISTS;
   INSERT INTO cycling.cyclist_expenses (cyclist_name, expense_id, amount, description, paid) VALUES ('Vera ADRIAN', 1, 7.95, 'Breakfast', false);
   APPLY BATCH;
 ```
+
 - Multiple partition logged batch
 
 ```
@@ -352,4 +395,24 @@ cqlsh> BEGIN LOGGED BATCH
 INSERT INTO cycling.cyclist_names (cyclist_name, race_id) VALUES ('Vera ADRIAN', 100);
 INSERT INTO cycling.cyclist_by_id (race_id, cyclist_name) VALUES (100, 'Vera ADRIAN');
 APPLY BATCH;
+```
+
+- COPY
+
+```
+COPY table_name [( column_list )]
+FROM 'file_name'[, 'file2_name', ...] | STDIN
+[WITH option = 'value' [AND ...]]
+
+COPY table_name [( column_list )]
+TO 'file_name'[, 'file2_name', ...] | STDOUT
+[WITH option = 'value' [AND ...]]
+
+
+COPY cycling.cyclist_name (id,lastname)
+TO '../cyclist_lastname.csv' WITH HEADER = TRUE ;
+
+
+COPY cycling.cyclist_name (id,firstname)
+FROM '../cyclist_firstname.csv' WITH HEADER = TRUE ;
 ```

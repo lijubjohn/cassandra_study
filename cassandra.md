@@ -215,7 +215,11 @@ on MurmurHash hash values.
 ### Materialized View
 
 * A materialized view will be created as a cluster wide table. Only different with the normal table is, data cannot be written to the table directly - all writes must be made to the original table
-* A materialized view primary key must contain all the columns that make the primary key of the original table plus the given column (that will be used to query) as the partition key
+- Materialized views are suited for high cardinality data. The data in a materialized view is arranged serially based on the view's primary key.
+- Requirements for a materialized view:
+  - The columns of the source table's primary key must be part of the materialized view's primary key
+  - Only one new column can be added to the materialized view's primary key
+  - Static columns are not allowed.
 * When a source table is updated, the materialized view is updated asynchronously. Therefore, in some edge cases, the delay in the update of materialized view is noticeable
 * If a read repair is triggered while reading from the original table, it will repair both the source table and the materialized view. However, if the read repair is triggered while reading from the materialized view, only the materialized view will be repaired
 * Materialized View update steps:
@@ -237,21 +241,24 @@ on MurmurHash hash values.
 * Single partition batch operations are atomic automatically, while multiple partition batch operations require the use of a batchlog to ensure atomicity.
 * Multiple partition batch operations often suffer from performance issues, and should only be used if atomicity must be ensured.
 * Batching can be effective for single partition write operations
+* Batches are used to atomically execute multiple CQL statements - either all will fail or all will succeed
 * Good reasons for batching operations
   - Inserts, updates or deletes to a single partition when atomicity and isolation is a requirement
   - Ensuring atomicity for small inserts or updates to multiple partitions when inconsistency cannot occur.
 * Poor reasons for batching operations
   - Inserting or updating data to multiple partitions, especially when a large number of partitions are involved.
-* All the statements processed in a BATCH statement timestamp the records with the same value. The operations may not perform in the order listed in the BATCH statement.
-* Batches are used to atomically execute multiple CQL statements - either all will fail or all will succeed
+* All the statements processed in a BATCH statement timestamp the records with the same value if custom timestamp is not provided.
+* The operations listed in the BATCH statement may not execute in the same order.
+* To force a particular execution order, you can add the **USING TIMESTAMP** clause.
+* If any DML statement in the batch uses compare-and-set (CAS) logic eg if not exists then you cannot use custom timestamp. It will give error.
 * Only modification statements (INSERT, UPDATE, or DELETE) may be included in a batch
 * One common use case is to keep multiple denormalized tables containing the same data in sync
 * Batches are by default logged unless all the mutations within a given batch target a single partition
 * Batched mutations on a single partition provide both atommicity  and isolation
 * With batched mutations on more than one partition, we get only atomicity and NOT isolation (which means we may see partial updates at a certain point in time, but all the updates will be eventually made)
-* Batched updates on a single partition is the only scenario where UNLOGGED batch is default and recommended
+* Batched updates on a single partition is the only scenario where **UNLOGGED** batch is default and recommended
 * Batched updates on multiple partitions may hit a lot of nodes and therefore should be used with caution
-* Counter modifications are only allowed within a special form of batch known as a counter batch. A counter batch can only contain counter modifications.
+* Counter modifications are only allowed within a special form of batch known as a **COUNTER** batch. A counter batch can only contain counter modifications.
 * The steps of logged batch execution
   * The co-ordinator node sends a copy of the batch called batchlog to two other nodes for redundance
   * The co-ordinator node then executes all the statements in the batch
@@ -265,6 +272,9 @@ on MurmurHash hash values.
 
 ### Light Weight Transaction
 
+* INSERT and UPDATE statements using the IF clause support lightweight transactions, also known as Compare and Set (CAS)
+* Cassandra supports non-equal conditions for lightweight transactions. You can use <, <=, >, >=, != and IN operators in WHERE clauses to query lightweight tables.
+* It is important to note that using IF NOT EXISTS on an INSERT, the timestamp will be designated by the lightweight transaction, and USING TIMESTAMP is prohibited.
 * It provides the behaviour called linearizability i.e. no other client can interleave between read and write a.k.a compare and swap
 * Cassandra uses a modefied version of the consensus algorithm called Paxos to implement this feature
 * Cassandra's LWT is limited to a single partition
@@ -521,6 +531,13 @@ on MurmurHash hash values.
     - Npk = Number of the primary keys
 
 - Recommended max size of a partition = 10 MB
+
+- Delete vs Truncate
+  - Delete
+    - Removes data from one or more selected columns (data is replaced with null) or removes the entire row when no column is specified. Cassandra deletes data in each selected partition atomically and in isolation.
+    - Deleted data is not removed from disk immediately. Cassandra marks the deleted data with a tombstone and then removes it after the grace period.
+  - Truncate
+    - Removes all data from the specified table immediately and irreversibly, and removes all data from any materialized views derived from that table.
 
 * Keyspace level configurations
   * Replication Factor
