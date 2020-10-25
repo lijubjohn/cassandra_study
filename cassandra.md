@@ -198,7 +198,7 @@ on MurmurHash hash values.
 * Rebalancing a cluster is automatically accomplished when adding or removing nodes. When a node joins the cluster, it assumes responsibility for an even portion of data from the other nodes in the cluster. If a node fails, the load is spread evenly across other nodes in the cluster
 * Rebuilding a dead node is faster because it involves every other node in the cluster
 * The proportion of vnodes assigned to each machine in a cluster can be assigned, so smaller and larger computers can be used in building a cluster
-* `num_tokens` parameter is used to set the number of vnodes in a node. Possible values - 2 to 128
+* `num_tokens` parameter is used to set the number of vnodes in a node. Possible values - 2 to 128 . Default - 256
 
 ### Secondary Index
 
