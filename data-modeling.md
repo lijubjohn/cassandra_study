@@ -1,6 +1,11 @@
 # Cassandra Data Modeling
 
 
+
+### Design flow
+
+-  Conceptual Data Model -> Application workflow -> Logical Data Model -> Physical Data Model
+
 ### Conceptual Data Model
   - Abstract view of your domain
   - Technology independent
@@ -24,9 +29,6 @@
 
 ### Logical Data Model
 - A logical data model results from a conceptual data model by organizing data into Cassandra-specific data structures based on data access patterns identified by an application workflow.
-- chebotko diagrams
-	- graphical representation of cassandra schema design
-	- documents logical and physical data model
 - mapping rules
 	- entities and relationships -> define table + attributes
 	- equality search attributes -> uniquely identify row (pk)
@@ -36,6 +38,7 @@
 
 ### Physical Data Model
 - logical model + cql datatype
+- represented by chebotko diagrams
 
 
 ### References
