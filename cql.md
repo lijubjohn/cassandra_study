@@ -43,8 +43,6 @@ cqlsh>
 ```
 
 
-### DDL
-
 - keyspace
 
 ```
@@ -183,6 +181,11 @@ cqlsh:cycling> select * from popular_count;
 
 (1 rows)
 
+
+cqlsh:cycling> UPDATE popular_count SET popularity = 10 WHERE id = 6ab09bec-e68e-48d9-a5f8-97e6fb4c9b47;
+InvalidRequest: Error from server: code=2200 [Invalid query] message="Cannot set the value of counter column popularity (counters can only be incremented/decremented, not set)"
+
+
 ```
 
 - Materialized view
@@ -317,3 +320,36 @@ CREATE TABLE nation_rank (nation text PRIMARY KEY , info tuple<int,text,int>);
   - A table that does not define any clustering columns cannot have a static column. The table having no clustering columns has a one-row partition in which every column is inherently static
   - A table defined with the COMPACT STORAGE directive cannot have a static column.
   - A column designated to be the partition key cannot be static.
+
+
+- Secondary index
+  - When not to use :
+    -  On high-cardinality columns for a query of a huge volume of records for a small number of results
+    - In tables that use a counter column.
+    - On a frequently updated or deleted column.
+    - To look for a row in a large partition unless narrowly queried.
+
+
+
+- Select from local
+```
+SELECT toTimestamp(now()) FROM system.local;
+SELECT now() FROM system.local;
+
+```
+
+- BATCH
+```
+cqlsh> BEGIN BATCH
+  INSERT INTO cycling.cyclist_expenses (cyclist_name, balance) VALUES ('Vera ADRIAN', 0) IF NOT EXISTS;
+  INSERT INTO cycling.cyclist_expenses (cyclist_name, expense_id, amount, description, paid) VALUES ('Vera ADRIAN', 1, 7.95, 'Breakfast', false);
+  APPLY BATCH;
+```
+- Multiple partition logged batch
+
+```
+cqlsh> BEGIN LOGGED BATCH
+INSERT INTO cycling.cyclist_names (cyclist_name, race_id) VALUES ('Vera ADRIAN', 100);
+INSERT INTO cycling.cyclist_by_id (race_id, cyclist_name) VALUES (100, 'Vera ADRIAN');
+APPLY BATCH;
+```

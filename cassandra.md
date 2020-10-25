@@ -213,6 +213,16 @@ on MurmurHash hash values.
 
 ### Batch
 
+* Batch operations for both single partition and multiple partitions ensure atomicity.
+* Single partition batch operations are atomic automatically, while multiple partition batch operations require the use of a batchlog to ensure atomicity.
+* Multiple partition batch operations often suffer from performance issues, and should only be used if atomicity must be ensured.
+* Batching can be effective for single partition write operations
+* Good reasons for batching operations
+  - Inserts, updates or deletes to a single partition when atomicity and isolation is a requirement
+  - Ensuring atomicity for small inserts or updates to multiple partitions when inconsistency cannot occur.
+* Poor reasons for batching operations
+  - Inserting or updating data to multiple partitions, especially when a large number of partitions are involved.
+* All the statements processed in a BATCH statement timestamp the records with the same value. The operations may not perform in the order listed in the BATCH statement.
 * Batches are used to atomically execute multiple CQL statements - either all will fail or all will succeed
 * Only modification statements (INSERT, UPDATE, or DELETE) may be included in a batch
 * One common use case is to keep multiple denormalized tables containing the same data in sync
@@ -471,6 +481,27 @@ on MurmurHash hash values.
     => R + W <= N
     ```
 
+- Ports used
+  - 7000 - for cluster communication (7001 if SSL is enabled)
+  - 9042 - for native protocol clients
+  - 7199 - for JMX
+
+- Memtables and SSTables are maintained per table.
+
+- commit log is shared among tables
+
+- TTL could be set to only non-primary key columns
+
+- Calculating Partition Size
+  - Nr * (Nc- Npk - Ns) + Ns
+  - where
+    - Nr = Number of the estimated rows
+    - Ns = Number of the static columns
+    - Nc = Number of the columns
+    - Npk = Number of the primary keys
+
+- Recommended max size of a partition = 10 MB
+
 * Keyspace level configurations
   * Replication Factor
   * Replication Strategy
@@ -502,6 +533,7 @@ on MurmurHash hash values.
 ALTER TABLE user ADD addresses map<text, address>; // It will throw error
 ```
 * A collection can also be used as a primary key, if it is frozen
+
 * **Counter**
   * Counter data type is a 64-bit integer value
   * A counter can only be incremented or decremented. It's value cannot be set
@@ -515,6 +547,7 @@ ALTER TABLE user ADD addresses map<text, address>; // It will throw error
 * Cassandra will not allow a part of a primary key to hold a null value. While Cassandra will allow you to create a secondary index on a column containing null values, it still won't allow you to query for those null values
 * Inserting an explicit null value creates a tombstone which consumes space and impacts performance. It is, however, okay to skip a column during insertion if the column doesn't have any value for that entry
 * User defined functions can be written in: Java, Javascript, Ruby, Python, Scala
+
 * Date time functions
 
 | Function Name          | Output Type     |
