@@ -1,7 +1,7 @@
 # Cassandra Data Modeling
 
 
-![](images/query_driven_datamodeling.png)
+![](images/query_driven_datamodeling.png = 250*250)
 
 
 ### Design flow
