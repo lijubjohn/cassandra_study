@@ -153,6 +153,26 @@
 * Default Snitch - SimpleSnitch
 * **GossipingPropertyFileSnitch** - Recommended for production. Reads rack and datacenter for the local node in cassandra-rackdc.properties file and propagates these values to other nodes via gossip. Here the rack and data center information of the node is configured in the file `cassandra-rackdc.properties`
 
+- Snitches
+  - Dynamic snitching
+    - Monitors the performance of reads from the various replicas and chooses the best replica based on this history.
+  - SimpleSnitch
+    - The SimpleSnitch is used only for single-datacenter deployments.
+  - RackInferringSnitch
+    - Determines the location of nodes by rack and datacenter corresponding to the IP addresses.
+  - PropertyFileSnitch
+    - Determines the location of nodes by rack and datacenter.
+  - GossipingPropertyFileSnitch
+    - Automatically updates all nodes using gossip when adding new nodes and is recommended for production.
+  - Ec2Snitch
+    - Use the Ec2Snitch with Amazon EC2 in a single region.
+  - Ec2MultiRegionSnitch
+    - Use the Ec2MultiRegionSnitch for deployments on Amazon EC2 where the cluster spans multiple regions.
+  - GoogleCloudSnitch
+    - Use the GoogleCloudSnitch for Cassandra deployments on Google Cloud Platform across one or more regions.
+  - CloudstackSnitch
+    - Use the CloudstackSnitch for Apache Cloudstack environments.
+
 ### Replication
 
 * Replication factor determines the number of copies of data to be stored in the cluster for fault tolerance and availability

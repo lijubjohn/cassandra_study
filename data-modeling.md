@@ -1,9 +1,5 @@
 # Cassandra Data Modeling
 
-
-![](images/query_driven_datamodeling1.png)
-
-
 ### Design flow
 
 ![](images/design_flow.png)
