@@ -211,15 +211,32 @@ on MurmurHash hash values.
 * Secondary indexes perform well when used to query data along with the partition keys of the original table. This ensures that Cassandra need not go to every node for data
 * Secondary indexes do not perform well with high cardinality or low cardinality columns. When the cardinality is in the middle of two extremes, it gives good result
 * Secondary indexes do not perform well with data that is frequently updated or deleted
+- When not to use :
+  -  On high-cardinality columns for a query of a huge volume of records for a small number of results
+  - In tables that use a counter column.
+  - On a frequently updated or deleted column.
+  - To look for a row in a large partition unless narrowly queried.
+
 
 ### Materialized View
 
 * A materialized view will be created as a cluster wide table. Only different with the normal table is, data cannot be written to the table directly - all writes must be made to the original table
+-  a materialized view is a table that is built from another table's data with a new primary key and new properties
+- A materialized view automatically receives the updates from its source table.
+- Secondary indexes are suited for low cardinality data. Queries of high cardinality columns on secondary indexes require Cassandra to access all nodes in a cluster, causing high read latency.
+- Materialized views are suited for high cardinality data. The data in a materialized view is arranged serially based on the view's primary key.
 - Materialized views are suited for high cardinality data. The data in a materialized view is arranged serially based on the view's primary key.
 - Requirements for a materialized view:
   - The columns of the source table's primary key must be part of the materialized view's primary key
   - Only one new column can be added to the materialized view's primary key
   - Static columns are not allowed.
+- Materialized views cause hotspots when low cardinality data is inserted.
+- When another INSERT is executed on cyclist_mv, Cassandra updates the source table and both of these materialized views. When data is deleted from cyclist_mv, Cassandra deletes the same data from any related materialized views
+- Materialized views allow fast lookup of the data using the normal Cassandra read path
+- However, materialized views do not have the same write performance as normal table writes. Cassandra performs an additional read-before-write to update each materialized view.
+- The performance of deletes on the source table also suffers.
+- Cassandra can only write data directly to source tables, not to materialized views.Cassandra updates a materialized view asynchronously after inserting data into the source table, so the update of materialized view is delayed.
+- Cassandra performs a read repair to a materialized view only after updating the source table.
 * When a source table is updated, the materialized view is updated asynchronously. Therefore, in some edge cases, the delay in the update of materialized view is noticeable
 * If a read repair is triggered while reading from the original table, it will repair both the source table and the materialized view. However, if the read repair is triggered while reading from the materialized view, only the materialized view will be repaired
 * Materialized View update steps:
@@ -474,6 +491,18 @@ on MurmurHash hash values.
 * It first initiates a validation compaction process which creates a Merkle tree for each table and exchanges the tree with the neighbouring nodes for comparion
 * Thw tree is kept only as long as it is needed to share the tree with the neighbouring trees in the ring
 * The advantage of Merkle tree is, it causes much less network traffic for transmission
+
+
+### Static column
+
+- In a table that uses clustering columns, non-clustering columns can be declared static in the table definition.
+- Static columns are only static within a given partition.
+- A table that does not define any clustering columns cannot have a static column. The table having no clustering columns has a one-row partition in which every column is inherently static
+- A table defined with the COMPACT STORAGE directive cannot have a static column.
+- A column designated to be the partition key cannot be static.
+- You can batch conditional updates to a static column.
+
+
 
 ## Developer Notes
 
