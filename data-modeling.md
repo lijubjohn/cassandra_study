@@ -1,12 +1,12 @@
 # Cassandra Data Modeling
 
 
-![](query_driven_datamodeling.png)
+![](images/query_driven_datamodeling.png)
 
 
 ### Design flow
 
-![](design_flow.png)
+![](images/design_flow.png)
 
 ### Conceptual Data Model
   - Abstract view of your domain
@@ -23,7 +23,7 @@
 	- cardinality
 	- weak entity types
 
-![](conceptual.png)  
+![](images/conceptual.png)  
 
 
 ### Application workflow & access patterns
@@ -31,7 +31,7 @@
 - Its visual representation consists of application tasks, dependencies among tasks, and data access patterns
 - Ideally, each data access pattern should specify what attributes to search for, search on, order by, or do aggregation on.
 
-![](app_workflow.png)
+![](images/app_workflow.png)
 
 ### Logical Data Model
 - A logical data model results from a conceptual data model by organizing data into Cassandra-specific data structures based on data access patterns identified by an application workflow.
@@ -43,17 +43,17 @@
 	- ordering attributes -> specify order of clustering column
 	- key attributes -> ?
 
-![](logical.png)
+![](images/logical.png)
 
 ### Physical Data Model
 - logical model + cql datatype
 - can be represented by chebotko diagrams
-![](physical.png)
+![](images/physical.png)
 
 
 ### Chebotko notation
 
-![](chebotko_diagram.png)
+![](images/chebotko_diagram.png)
 
 ### References
 [Data modeling Examples](https://www.datastax.com/learn/data-modeling-by-example)
