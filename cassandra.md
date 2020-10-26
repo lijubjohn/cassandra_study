@@ -288,6 +288,18 @@ on MurmurHash hash values.
 * **SERIAL** & **LOCAL_SERIAL** (equivalent to QUORUM & LOCAL_QUORUM respectively) consistency modes are for use with lightweight transaction
 * If there are enough replicas available but the required writes don't finish within the timeout window, the coordinator throws a Timeout Exception
 
+
+### Bloom Filter
+
+- Cassandra uses Bloom filters to determine whether an SSTable has data for a particular partition key
+- Possible states
+  - If a bloom filter returns false for a given partition key, then it is absolutely certain that the partition key is not present in the corresponding SSTable
+  - If it returns true, however, then the SSTable is likely to contain the partition key
+- Each SSTable has a Bloom filter associated with it.
+- It speeds up the process of partition key lookup by narrowing the pool of keys.
+- Bloom filter is a probabilistic function, it can result in false positives
+
+
 ### Read Path
 
 
