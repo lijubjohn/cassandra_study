@@ -449,6 +449,11 @@ on MurmurHash hash values.
 
 ![](images/write_flow.png)
 
+- Write flow
+  - Logging data in the commit log
+  - Writing data to the memtable
+  - Flushing data from the memtable
+  - Storing data on disk in SSTables
 * The client connects to any node which becomes the coordinator node for the write operation
 * The coordinator node uses the partitioner to identify which nodes in the cluster are replicas, according to the replication factor of the keyspace
 * The coordinator node may itself be a replica, especially if the client is using a token-aware driver
