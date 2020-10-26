@@ -246,14 +246,6 @@ cqlsh:cycling> CREATE MATERIALIZED VIEW cyclist_name_mv_1
            ... PRIMARY KEY (country, firstname, lastname, gender, rank);
 InvalidRequest: Error from server: code=2200 [Invalid query] message="Primary key column 'firstname' is required to be filtered by 'IS NOT NULL'"
 
-
--- wrong
-CREATE MATERIALIZED VIEW cyclist_name_mv_1
-AS SELECT age , country
-FROM  cyclist_name
-WHERE firstname is not null and lastname is not null and country is not null and gender is not null and rank is not null
-PRIMARY KEY (country, firstname, lastname, gender, rank);
-
 -- correct
 cqlsh:cycling> CREATE MATERIALIZED VIEW cyclist_name_mv_1
            ... AS SELECT age , country
