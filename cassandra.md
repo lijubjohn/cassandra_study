@@ -211,6 +211,7 @@ on MurmurHash hash values.
 * Secondary indexes perform well when used to query data along with the partition keys of the original table. This ensures that Cassandra need not go to every node for data
 * Secondary indexes do not perform well with high cardinality or low cardinality columns. When the cardinality is in the middle of two extremes, it gives good result
 * Secondary indexes do not perform well with data that is frequently updated or deleted
+- Secondary index can be created on any of the partition key  or clustering key column also
 - When not to use :
   -  On high-cardinality columns for a query of a huge volume of records for a small number of results
   - In tables that use a counter column.
@@ -389,6 +390,9 @@ on MurmurHash hash values.
 
 ### Read Path
 
+
+![](images/read_flow.png)
+
 * The client connects to any node which becomes the coordinator node for the read operation
 * The coordinator node uses the partitioner to identify which nodes in the cluster are replicas, according to the replication factor of the keyspace
 * The coordinator node may itself be a replica, especially if the client is using a token-aware driver
@@ -416,6 +420,8 @@ on MurmurHash hash values.
   * Finally the merged data can be added to the row cache (if enabled) and returned to the client or coordinator node
 
 
+
+
 ### How are read requests accomplished?
 
 - There are three types of read requests that a coordinator can send to a replica:
@@ -430,6 +436,8 @@ on MurmurHash hash values.
 - Example to brainstorm  -> Consistency level ( All read + One write) => strongly consistent
 
 ### Write Path
+
+![](images/write_flow.png)
 
 * The client connects to any node which becomes the coordinator node for the write operation
 * The coordinator node uses the partitioner to identify which nodes in the cluster are replicas, according to the replication factor of the keyspace
