@@ -393,6 +393,16 @@ on MurmurHash hash values.
 
 ![](images/read_flow.png)
 
+- Read flow
+  - Check the memtable
+  - Check row cache, if enabled
+  - Checks Bloom filter
+  - Checks partition key cache, if enabled
+  - Goes directly to the compression offset map if a partition key is found in the partition key cache, or checks the partition summary if not
+  - If the partition summary is checked, then the partition index is accessed
+  - Locates the data on disk using the compression offset map
+  - Fetches the data from the SSTable on disk
+
 * The client connects to any node which becomes the coordinator node for the read operation
 * The coordinator node uses the partitioner to identify which nodes in the cluster are replicas, according to the replication factor of the keyspace
 * The coordinator node may itself be a replica, especially if the client is using a token-aware driver
