@@ -437,6 +437,8 @@ on MurmurHash hash values.
 - Cassandra rejects USING TIMESTAMP or USING TTL when updating a counter column.
 - INSERT statements are not allowed on counter tables
 - To increase or decrease the value of the counter, use the UPDATE command
+- You cannot set a value to counter column , only increament or decrement are possible operations on counter column
+- Default value = 0
 
 
 ### Secondary Index
