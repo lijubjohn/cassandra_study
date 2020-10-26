@@ -14,6 +14,7 @@
   - [Replication](#replication)
   - [Partitioner](#partitioner)
   - [Consistency Level](#consistency-level)
+  - [Bloom filter](#bloom-filter)
   - [Read Path](#read-path)
   - [Write Path](#write-path)
   - [Failure Detection](#failure-detection)
