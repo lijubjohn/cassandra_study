@@ -50,6 +50,25 @@ CREATE KEYSPACE IF NOT EXISTS cycling WITH REPLICATION =
 { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
 
 
+-- multi-dc
+CREATE KEYSPACE cycling
+  WITH REPLICATION = {
+   'class' : 'NetworkTopologyStrategy',
+   'boston'  : 3 , // Datacenter 1
+   'seattle' : 2 , // Datacenter 2
+   'tokyo'   : 2   // Datacenter 3
+  };
+
+-- with durable write disabled
+
+CREATE KEYSPACE cycling
+  WITH REPLICATION = {
+   'class' : 'NetworkTopologyStrategy',
+   'datacenter1' : 3
+  }
+AND DURABLE_WRITES = false ;
+
+
 use cycling;
 ```
 
@@ -140,16 +159,6 @@ InvalidRequest: Error from server: code=2200 [Invalid query] message="Cannot exe
 
 
 - Counter Column
-  -  Table containing counter column can have :
-      - The primary key (can be one or more columns)
-      - The counter column
-      - Column(s) that serves as the primary key or partition key cannot be counter column
-  - A counter column cannot be indexed or deleted
-  - Column(s) that serves as the primary key or partition key cannot be counter column
-  - Cassandra rejects USING TIMESTAMP or USING TTL when updating a counter column.
-  - INSERT statements are not allowed on counter tables
-  - To increase or decrease the value of the counter, use the UPDATE command
-
 
 ```
 CREATE TABLE popular_count (
