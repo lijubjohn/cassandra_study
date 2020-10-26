@@ -6,10 +6,6 @@
 - [Cassandra Basics](#cassandra-basics)
 - [Architecture](#architecture)
   - [Vnodes](#vnodes)
-  - [Secondary Index](#secondary-index)
-  - [Materialized View](#materialized-view)
-  - [Batch](#batch)
-  - [Light Weight Transaction](#light-weight-transaction)
   - [Storage](#storage)
   - [Seed Nodes](#seed-nodes)
   - [Tomb Stone](#tomb-stone)
@@ -24,6 +20,13 @@
   - [Hinted Handoff](#hinted-handoff)
   - [Read Repair](#read-repair)
   - [Anti Entropy Read Repair](#anti-entropy-read-repair)
+  - [Static column](#static-column)
+  - [Counter column](#counter-column)
+  - [Secondary Index](#secondary-index)
+  - [Materialized View](#materialized-view)
+  - [Batch](#batch)
+  - [Light Weight Transaction](#light-weight-transaction)
+
 - [Developer Notes](#developer-notes)
 - [Operations](#operations)
 - [Hardware](#hardware)
@@ -200,109 +203,6 @@ on MurmurHash hash values.
 * The proportion of vnodes assigned to each machine in a cluster can be assigned, so smaller and larger computers can be used in building a cluster
 * `num_tokens` parameter is used to set the number of vnodes in a node. Possible values - 2 to 128 . Default - 256
 
-### Secondary Index
-
-* Traditional secondary indexes are hidden Cassandra tables. The difference with the regular tables is, the partitions of the hidden table (index table) will not be distributed using the cluster wide partitioner, instead the index data will be colocated with the original data. the key reasons for data co-location are
-  * Reduced index update latency
-  * Reduced the possibility of lost index update
-  * Avoid arbitrary large partitions in the index table
-* Essentially, the secondary index is an inverted index from the indexed column to the partition keys and clustering keys of the original table
-* Filtering using secondary indexed column without any filering condition on partition key will make Cassandra hit every node (at least the ones needed to cover all tokens)
-* Secondary indexes perform well when used to query data along with the partition keys of the original table. This ensures that Cassandra need not go to every node for data
-* Secondary indexes do not perform well with high cardinality or low cardinality columns. When the cardinality is in the middle of two extremes, it gives good result
-* Secondary indexes do not perform well with data that is frequently updated or deleted
-- Secondary index can be created on any of the partition key  or clustering key column also
-- When not to use :
-  -  On high-cardinality columns for a query of a huge volume of records for a small number of results
-  - In tables that use a counter column.
-  - On a frequently updated or deleted column.
-  - To look for a row in a large partition unless narrowly queried.
-
-
-### Materialized View
-
-* A materialized view will be created as a cluster wide table. Only different with the normal table is, data cannot be written to the table directly - all writes must be made to the original table
--  a materialized view is a table that is built from another table's data with a new primary key and new properties
-- A materialized view automatically receives the updates from its source table.
-- Secondary indexes are suited for low cardinality data. Queries of high cardinality columns on secondary indexes require Cassandra to access all nodes in a cluster, causing high read latency.
-- Materialized views are suited for high cardinality data. The data in a materialized view is arranged serially based on the view's primary key.
-- Materialized views are suited for high cardinality data. The data in a materialized view is arranged serially based on the view's primary key.
-- Requirements for a materialized view:
-  - The columns of the source table's primary key must be part of the materialized view's primary key
-  - Only one new column can be added to the materialized view's primary key
-  - Static columns are not allowed.
-- Materialized views cause hotspots when low cardinality data is inserted.
-- When another INSERT is executed on cyclist_mv, Cassandra updates the source table and both of these materialized views. When data is deleted from cyclist_mv, Cassandra deletes the same data from any related materialized views
-- Materialized views allow fast lookup of the data using the normal Cassandra read path
-- However, materialized views do not have the same write performance as normal table writes. Cassandra performs an additional read-before-write to update each materialized view.
-- The performance of deletes on the source table also suffers.
-- Cassandra can only write data directly to source tables, not to materialized views.Cassandra updates a materialized view asynchronously after inserting data into the source table, so the update of materialized view is delayed.
-- Cassandra performs a read repair to a materialized view only after updating the source table.
-* When a source table is updated, the materialized view is updated asynchronously. Therefore, in some edge cases, the delay in the update of materialized view is noticeable
-* If a read repair is triggered while reading from the original table, it will repair both the source table and the materialized view. However, if the read repair is triggered while reading from the materialized view, only the materialized view will be repaired
-* Materialized View update steps:
-  * Optionally create a batchlog at co-ordinator (depending on parameter cassandra.mv_enable_coordinator_batchlog)
-  * Co-ordinator will send the mutation to all the replicas and wait for as many acknowledgements as needed by the consistency level
-  * Each replica will acquire a local lock on the partition where the data need to be inserted / updated / deleted. This is required because Cassandra needs to doa local read before write to get the partition key of the materialized view and therefore other concurrent writes must not interleave
-  * Each replica will doa local read on the partition
-  * Each replica will now create a local batchlog to update the materialized view
-  * Each replica will execute the batchlog asynchronously against a paired materialized view replica with CL=ONE
-  * Each replica applies the mutation locally
-  * Each replica releases its local lock on the partition
-  * If the local mutation is successful, each replica sends an acknowledgement back to the co-ordinator
-  * If the co-ordinator node recieves as many acknowledgement as required by the consistency level, it will return acknowledgement to the client
-  * The co-ordinator log will delete its local batchlog (depending on parameter cassandra.mv_enable_coordinator_batchlog)
-
-### Batch
-
-* Batch operations for both single partition and multiple partitions ensure atomicity.
-* Single partition batch operations are atomic automatically, while multiple partition batch operations require the use of a batchlog to ensure atomicity.
-* Multiple partition batch operations often suffer from performance issues, and should only be used if atomicity must be ensured.
-* Batching can be effective for single partition write operations
-* Batches are used to atomically execute multiple CQL statements - either all will fail or all will succeed
-* Good reasons for batching operations
-  - Inserts, updates or deletes to a single partition when atomicity and isolation is a requirement
-  - Ensuring atomicity for small inserts or updates to multiple partitions when inconsistency cannot occur.
-* Poor reasons for batching operations
-  - Inserting or updating data to multiple partitions, especially when a large number of partitions are involved.
-* All the statements processed in a BATCH statement timestamp the records with the same value if custom timestamp is not provided.
-* The operations listed in the BATCH statement may not execute in the same order.
-* To force a particular execution order, you can add the **USING TIMESTAMP** clause.
-* If any DML statement in the batch uses compare-and-set (CAS) logic eg if not exists then you cannot use custom timestamp. It will give error.
-* Only modification statements (INSERT, UPDATE, or DELETE) may be included in a batch
-* One common use case is to keep multiple denormalized tables containing the same data in sync
-* Batches are by default logged unless all the mutations within a given batch target a single partition
-* Batched mutations on a single partition provide both atommicity  and isolation
-* With batched mutations on more than one partition, we get only atomicity and NOT isolation (which means we may see partial updates at a certain point in time, but all the updates will be eventually made)
-* Batched updates on a single partition is the only scenario where **UNLOGGED** batch is default and recommended
-* Batched updates on multiple partitions may hit a lot of nodes and therefore should be used with caution
-* Counter modifications are only allowed within a special form of batch known as a **COUNTER** batch. A counter batch can only contain counter modifications.
-* The steps of logged batch execution
-  * The co-ordinator node sends a copy of the batch called batchlog to two other nodes for redundance
-  * The co-ordinator node then executes all the statements in the batch
-  * The co-ordinator node deletes the batchlog from all nodes
-  * The co-ordinator node sends acknowledgement to the client
-  * If the co-ordinator node fails while executing the batch, the other nodes holding the batchlog will do the execution. These nodes keep checking every minute for batchlogs that should have been executed
-  * Cassandra uses a grace period from the timestamp on the batch statement equal to twice the value of the write_request_timeout_in_ms property. Any batches that are older than this grace period will be replayed and then deleted from the remaining node
-  * A batch containing conditional updates can only operate within a single partition
-  * If one statement in a batch is a conditional update, the conditional logic must return true, or the entire batch fails
-  * If the batch contains two or more conditional updates, all the conditions must return true, or the entire batch fails
-
-### Light Weight Transaction
-
-* INSERT and UPDATE statements using the IF clause support lightweight transactions, also known as Compare and Set (CAS)
-* Cassandra supports non-equal conditions for lightweight transactions. You can use <, <=, >, >=, != and IN operators in WHERE clauses to query lightweight tables.
-* It is important to note that using IF NOT EXISTS on an INSERT, the timestamp will be designated by the lightweight transaction, and USING TIMESTAMP is prohibited.
-* It provides the behaviour called linearizability i.e. no other client can interleave between read and write a.k.a compare and swap
-* Cassandra uses a modefied version of the consensus algorithm called Paxos to implement this feature
-* Cassandra's LWT is limited to a single partition
-* Cassandra stores a Paxos state at each partition, so the transactions on different partitions do not interfare with each other
-* The four steps of the process are:
-  * Prepare / Promise - To modify data, a coordinator node can propose a new value to the replica nodes, taking on the role of leader. Other nodes may act as leaders simultaneously for other modifications. Each replica node checks the proposal, and if the proposal is the latest it has seen, it promises to not accept proposals associated with any prior proposals. Each replica node also returns the last proposal it received that is still in progress
-  * Read / Results
-  * Propose / Accept - If the proposal is approved by a majority of replicas, the leader commits the proposal, but with the caveat that it must first commit any in-progress proposals that preceded its own proposal
-  * Commit / Ack
-* As it involves the above 4 steps (or 4 round trips), LWT is atleast 4 times slower than a normal execution
 
 ### Storage
 
@@ -452,6 +352,7 @@ on MurmurHash hash values.
 - Write flow
   - Logging data in the commit log
   - Writing data to the memtable
+  - If row cache is enabled , and row is present in row cache then invalidate it
   - Flushing data from the memtable
   - Storing data on disk in SSTables
 * The client connects to any node which becomes the coordinator node for the write operation
@@ -525,6 +426,122 @@ on MurmurHash hash values.
 - A column designated to be the partition key cannot be static.
 - You can batch conditional updates to a static column.
 
+
+### Counter Column
+-  Table containing counter column can have :
+    - The primary key (can be one or more columns)
+    - The counter column
+    - Column(s) that serves as the primary key or partition key cannot be counter column
+- A counter column cannot be indexed or deleted
+- Column(s) that serves as the primary key or partition key cannot be counter column
+- Cassandra rejects USING TIMESTAMP or USING TTL when updating a counter column.
+- INSERT statements are not allowed on counter tables
+- To increase or decrease the value of the counter, use the UPDATE command
+
+
+### Secondary Index
+
+* Traditional secondary indexes are hidden Cassandra tables. The difference with the regular tables is, the partitions of the hidden table (index table) will not be distributed using the cluster wide partitioner, instead the index data will be colocated with the original data. the key reasons for data co-location are
+  * Reduced index update latency
+  * Reduced the possibility of lost index update
+  * Avoid arbitrary large partitions in the index table
+* Essentially, the secondary index is an inverted index from the indexed column to the partition keys and clustering keys of the original table
+* Filtering using secondary indexed column without any filering condition on partition key will make Cassandra hit every node (at least the ones needed to cover all tokens)
+* Secondary indexes perform well when used to query data along with the partition keys of the original table. This ensures that Cassandra need not go to every node for data
+* Secondary indexes do not perform well with high cardinality or low cardinality columns. When the cardinality is in the middle of two extremes, it gives good result
+* Secondary indexes do not perform well with data that is frequently updated or deleted
+- Secondary index can be created on any of the partition key  or clustering key column also
+- When not to use :
+  -  On high-cardinality columns for a query of a huge volume of records for a small number of results
+  - In tables that use a counter column.
+  - On a frequently updated or deleted column.
+  - To look for a row in a large partition unless narrowly queried.
+
+
+### Materialized View
+
+* A materialized view will be created as a cluster wide table. Only different with the normal table is, data cannot be written to the table directly - all writes must be made to the original table
+-  a materialized view is a table that is built from another table's data with a new primary key and new properties
+- A materialized view automatically receives the updates from its source table.
+- Secondary indexes are suited for low cardinality data. Queries of high cardinality columns on secondary indexes require Cassandra to access all nodes in a cluster, causing high read latency.
+- Materialized views are suited for high cardinality data. The data in a materialized view is arranged serially based on the view's primary key.
+- Materialized views are suited for high cardinality data. The data in a materialized view is arranged serially based on the view's primary key.
+- Requirements for a materialized view:
+  - The columns of the source table's primary key must be part of the materialized view's primary key
+  - Only one new column can be added to the materialized view's primary key
+  - Static columns are not allowed.
+- Materialized views cause hotspots when low cardinality data is inserted.
+- When another INSERT is executed on cyclist_mv, Cassandra updates the source table and both of these materialized views. When data is deleted from cyclist_mv, Cassandra deletes the same data from any related materialized views
+- Materialized views allow fast lookup of the data using the normal Cassandra read path
+- However, materialized views do not have the same write performance as normal table writes. Cassandra performs an additional read-before-write to update each materialized view.
+- The performance of deletes on the source table also suffers.
+- Cassandra can only write data directly to source tables, not to materialized views.Cassandra updates a materialized view asynchronously after inserting data into the source table, so the update of materialized view is delayed.
+- Cassandra performs a read repair to a materialized view only after updating the source table.
+* When a source table is updated, the materialized view is updated asynchronously. Therefore, in some edge cases, the delay in the update of materialized view is noticeable
+* If a read repair is triggered while reading from the original table, it will repair both the source table and the materialized view. However, if the read repair is triggered while reading from the materialized view, only the materialized view will be repaired
+* Materialized View update steps:
+  * Optionally create a batchlog at co-ordinator (depending on parameter cassandra.mv_enable_coordinator_batchlog)
+  * Co-ordinator will send the mutation to all the replicas and wait for as many acknowledgements as needed by the consistency level
+  * Each replica will acquire a local lock on the partition where the data need to be inserted / updated / deleted. This is required because Cassandra needs to doa local read before write to get the partition key of the materialized view and therefore other concurrent writes must not interleave
+  * Each replica will doa local read on the partition
+  * Each replica will now create a local batchlog to update the materialized view
+  * Each replica will execute the batchlog asynchronously against a paired materialized view replica with CL=ONE
+  * Each replica applies the mutation locally
+  * Each replica releases its local lock on the partition
+  * If the local mutation is successful, each replica sends an acknowledgement back to the co-ordinator
+  * If the co-ordinator node recieves as many acknowledgement as required by the consistency level, it will return acknowledgement to the client
+  * The co-ordinator log will delete its local batchlog (depending on parameter cassandra.mv_enable_coordinator_batchlog)
+
+### Batch
+
+* Batch operations for both single partition and multiple partitions ensure atomicity.
+* Single partition batch operations are atomic automatically, while multiple partition batch operations require the use of a batchlog to ensure atomicity.
+* Multiple partition batch operations often suffer from performance issues, and should only be used if atomicity must be ensured.
+* Batching can be effective for single partition write operations
+* Batches are used to atomically execute multiple CQL statements - either all will fail or all will succeed
+* Good reasons for batching operations
+  - Inserts, updates or deletes to a single partition when atomicity and isolation is a requirement
+  - Ensuring atomicity for small inserts or updates to multiple partitions when inconsistency cannot occur.
+* Poor reasons for batching operations
+  - Inserting or updating data to multiple partitions, especially when a large number of partitions are involved.
+* All the statements processed in a BATCH statement timestamp the records with the same value if custom timestamp is not provided.
+* The operations listed in the BATCH statement may not execute in the same order.
+* To force a particular execution order, you can add the **USING TIMESTAMP** clause.
+* If any DML statement in the batch uses compare-and-set (CAS) logic eg if not exists then you cannot use custom timestamp. It will give error.
+* Only modification statements (INSERT, UPDATE, or DELETE) may be included in a batch
+* One common use case is to keep multiple denormalized tables containing the same data in sync
+* Batches are by default logged unless all the mutations within a given batch target a single partition
+* Batched mutations on a single partition provide both atommicity  and isolation
+* With batched mutations on more than one partition, we get only atomicity and NOT isolation (which means we may see partial updates at a certain point in time, but all the updates will be eventually made)
+* Batched updates on a single partition is the only scenario where **UNLOGGED** batch is default and recommended
+* Batched updates on multiple partitions may hit a lot of nodes and therefore should be used with caution
+* Counter modifications are only allowed within a special form of batch known as a **COUNTER** batch. A counter batch can only contain counter modifications.
+* The steps of logged batch execution
+  * The co-ordinator node sends a copy of the batch called batchlog to two other nodes for redundance
+  * The co-ordinator node then executes all the statements in the batch
+  * The co-ordinator node deletes the batchlog from all nodes
+  * The co-ordinator node sends acknowledgement to the client
+  * If the co-ordinator node fails while executing the batch, the other nodes holding the batchlog will do the execution. These nodes keep checking every minute for batchlogs that should have been executed
+  * Cassandra uses a grace period from the timestamp on the batch statement equal to twice the value of the write_request_timeout_in_ms property. Any batches that are older than this grace period will be replayed and then deleted from the remaining node
+  * A batch containing conditional updates can only operate within a single partition
+  * If one statement in a batch is a conditional update, the conditional logic must return true, or the entire batch fails
+  * If the batch contains two or more conditional updates, all the conditions must return true, or the entire batch fails
+
+### Light Weight Transaction
+
+* INSERT and UPDATE statements using the IF clause support lightweight transactions, also known as Compare and Set (CAS)
+* Cassandra supports non-equal conditions for lightweight transactions. You can use <, <=, >, >=, != and IN operators in WHERE clauses to query lightweight tables.
+* It is important to note that using IF NOT EXISTS on an INSERT, the timestamp will be designated by the lightweight transaction, and USING TIMESTAMP is prohibited.
+* It provides the behaviour called linearizability i.e. no other client can interleave between read and write a.k.a compare and swap
+* Cassandra uses a modefied version of the consensus algorithm called Paxos to implement this feature
+* Cassandra's LWT is limited to a single partition
+* Cassandra stores a Paxos state at each partition, so the transactions on different partitions do not interfare with each other
+* The four steps of the process are:
+  * Prepare / Promise - To modify data, a coordinator node can propose a new value to the replica nodes, taking on the role of leader. Other nodes may act as leaders simultaneously for other modifications. Each replica node checks the proposal, and if the proposal is the latest it has seen, it promises to not accept proposals associated with any prior proposals. Each replica node also returns the last proposal it received that is still in progress
+  * Read / Results
+  * Propose / Accept - If the proposal is approved by a majority of replicas, the leader commits the proposal, but with the caveat that it must first commit any in-progress proposals that preceded its own proposal
+  * Commit / Ack
+* As it involves the above 4 steps (or 4 round trips), LWT is atleast 4 times slower than a normal execution
 
 
 ## Developer Notes
