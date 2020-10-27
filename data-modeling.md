@@ -21,6 +21,7 @@
 
 ![](images/conceptual.png)  
 
+![](images/erd.png)
 
 ### Application workflow & access patterns
 - An application workflow is designed with the goal of understanding data access patterns for a data-driven application
