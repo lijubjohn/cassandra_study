@@ -354,6 +354,26 @@ cqlsh> BEGIN BATCH
   INSERT INTO cycling.cyclist_expenses (cyclist_name, balance) VALUES ('Vera ADRIAN', 0) IF NOT EXISTS;
   INSERT INTO cycling.cyclist_expenses (cyclist_name, expense_id, amount, description, paid) VALUES ('Vera ADRIAN', 1, 7.95, 'Breakfast', false);
   APPLY BATCH;
+
+
+-- Batching conditional updates
+- Conditional batches cannot provide custom timestamps. UPDATE and DELETE statements within a conditional batch cannot use IN conditions to filter rows.
+
+BEGIN BATCH
+  INSERT INTO purchases (user, balance) VALUES ('user1', -8) IF NOT EXISTS;
+  INSERT INTO purchases (user, expense_id, amount, description, paid)
+    VALUES ('user1', 1, 8, 'burrito', false);
+APPLY BATCH;
+
+-- Batching counter updates
+
+-- Counter batches cannot include non-counter columns in the DML statements, just as a non-counter batch cannot include counter columns. Counter batch statements cannot provide custom timestamps.
+
+BEGIN COUNTER BATCH
+  UPDATE UserActionCounts SET total = total + 2 WHERE keyalias = 523;
+  UPDATE AdminActionCounts SET total = total + 2 WHERE keyalias = 701;
+APPLY BATCH;
+
 ```
 
 - Multiple partition logged batch
@@ -383,4 +403,13 @@ TO '../cyclist_lastname.csv' WITH HEADER = TRUE ;
 
 COPY cycling.cyclist_name (id,firstname)
 FROM '../cyclist_firstname.csv' WITH HEADER = TRUE ;
+```
+
+- LIMIT
+
+```
+
+cqlsh> SELECT * From cycling.cyclist_name LIMIT 3;
+
+cqlsh> SELECT * FROM cycling.rank_by_year_and_name PER PARTITION LIMIT 2;
 ```
