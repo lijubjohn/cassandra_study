@@ -1,5 +1,5 @@
 
-### Cassandra developer associate exam 
+### Cassandra developer associate exam
 - clustering order by  (3-4 q) -> mainly checking do we need to include partition key in the order by clause
 
 - secondary index (3-4 q) -> one question on SASIIndex
@@ -48,10 +48,8 @@ APPLY BATCH
 - what is hybrid architecture ?
 
 - materialized view  (2-3 q) ->
- - Q.
-  - when in materialzed view used
- - Q.
- - based on syntax  (check where condition and null check)
+  - Q. when in materialzed view used
+  - Q. based on syntax  (check where condition and null check)
 
 - create secondary index  on table with partition key & clustering column and want to query on non-primary key -> syntax (do we need to filter null in where ?)
 
