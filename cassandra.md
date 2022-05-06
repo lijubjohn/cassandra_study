@@ -53,7 +53,7 @@
 - Elastic Scalability : up or down size , horizontal scaling  ( linear scalability )
 - High Availability and Fault Tolerance
 - Tuneable Consistency
-- CA in CAP - To primarily support availability and partition tolerance, your system may return inaccurate data, but the system will always be available, even in the face of net‐ work partitioning. DNS is perhaps the most popular example of a system that is massively scalable, highly available, and partition tolerant.
+- AP in CAP - To primarily support availability and partition tolerance, your system may return inaccurate data, but the system will always be available, even in the face of net‐ work partitioning. DNS is perhaps the most popular example of a system that is massively scalable, highly available, and partition tolerant.
 - Row-Oriented
 	- Cassandra’s data model can be described as a partitioned row store, in which data is stored in sparse multidimensional hash tables.
 	- “Sparse” means that for any given row you can have one or more columns, but each row doesn’t need to have all the same columns as other rows like it (as in a relational model).
